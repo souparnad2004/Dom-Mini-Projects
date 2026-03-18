@@ -2,8 +2,14 @@ const addBtn = document.getElementById('add-btn');
 const input = document.getElementById('item-input');
 
 addBtn.addEventListener('click', () => {
-    if(input.value === "") return;
-
+    if(input.value.trim() === "") {
+        input.classList.add("error");
+        input.addEventListener("click", () => {
+            input.classList.remove("error");
+        })
+        return;
+    }
+    
     const li = document.createElement('li');
     const span = document.createElement('span');
     span.textContent = input.value
@@ -11,6 +17,8 @@ addBtn.addEventListener('click', () => {
 
     const buttons = document.createElement('div');
     li.append(buttons);
+
+    const deleteBtn = document.createElement('button');
 
     const editBtn = document.createElement('button');
     editBtn.classList.add('edit');
@@ -34,6 +42,13 @@ addBtn.addEventListener('click', () => {
         li.append(updateBtn);
 
         updateBtn.addEventListener('click',() => {
+            if(editBox.value.trim() === "") {
+                editBox.classList.add("error");
+                editBox.addEventListener("click", () => {
+                    editBox.classList.remove("error");
+                })
+                return;
+            } 
             span.textContent = editBox.value;
             editBox.remove();
             updateBtn.remove();
@@ -43,7 +58,6 @@ addBtn.addEventListener('click', () => {
         })
     })
 
-    const deleteBtn = document.createElement('button');
     deleteBtn.classList.add('delete')
     deleteBtn.textContent = "Delete"
     buttons.append(deleteBtn)
