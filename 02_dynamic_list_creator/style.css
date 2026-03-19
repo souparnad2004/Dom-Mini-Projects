@@ -126,6 +126,7 @@ li div {
 
 li span {
     flex: 1;
+    text-align: left;
     word-break: break-word;
     overflow-wrap: break-word;
 }
