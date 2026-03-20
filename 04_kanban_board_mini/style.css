@@ -1,0 +1,97 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #0b0b12;
+    color: #e5e7eb;
+    padding: 20px;
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0.2px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 25px;
+    color: #a78bfa;
+    letter-spacing: 1px;
+}
+
+.board {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.column {
+    background: #18181b;
+    border: 1px solid #27272a;
+    padding: 15px;
+    border-radius: 14px;
+    width: 300px;
+    min-height: 420px;
+    transition: 0.2s;
+}
+
+.column:hover {
+   border-color: #a78bfa;
+}
+
+.column h2 {
+    margin-bottom: 12px;
+    color: #e4e4e4;
+}
+
+.tasks {
+    min-height: 200px;
+}
+
+.task {
+    background: #27272a;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    cursor: grab;
+    transition: 0.2s;
+    border: 1px solid transparent;
+    font-weight: 500;
+}
+
+.task:hover {
+  border-color: #a78bfa;
+  transform: translateY(-3px);
+}
+
+.task.dragging {
+  opacity: 0.5;
+}
+
+.add-btn {
+    margin-top: 12px;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    background: #8b5cf6;
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s;
+    font-weight: 600;
+}
+
+.add-btn:hover {
+    background: #7c3aed;
+    transform: scale(1.05);
+}
+
+.column.drag-over {
+  border: 2px dashed #a78bfa; 
+  background: rgba(167, 139, 250, 0.08); 
+}
