@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background-color: aliceblue;
+        text-align: center;
+        font-size: 24px;
+      }
+      .container {
+        padding: 20px;
+        display: flex;
+        flex-wrap: wrap;
+      }
+      .container input {
+        margin: 3px;
+        accent-color: #615abd;
+        width: 25px;
+        height: 25px;
+        background-color: azure;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Live Checkbox</h1>
+
+    <p id="count"></p>
+    <div class="container"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io("http://localhost:4000");
+      const container = document.querySelector(".container");
+
+      const checkedSet = new Set();
+      const count = document.querySelector("#count");
+
+      for (let i = 0; i < 5000; i++) {
+        const checkBox = document.createElement("input");
+        checkBox.type = "checkbox";
+
+        checkBox.dataset.id = i;
+        checkBox.addEventListener("change", () => {
+          socket.emit("checkbox-change", {
+            id: i,
+            checked: checkBox.checked,
+          });
+        });
+        console.log(checkBox.checked);
+        container.appendChild(checkBox);
+      }
+
+      socket.on("init-state", ({ checkedList, totalCount }) => {
+        checkedList.forEach((index) => {
+          const checkBox = document.querySelector(`input[data-id="${index}"]`);
+
+          if (checkBox) checkBox.checked = true;
+
+          checkedSet.add(index);
+        });
+
+        count.textContent = `Total Checked: ${totalCount}`;
+      });
+
+      socket.on("checkbox-change", ({ index, checked, totalCount }) => {
+        const checkBox = document.querySelector(`input[data-id="${index}"]`);
+
+        if (checkBox) {
+          checkBox.checked = checked;
+        }
+
+        count.textContent = `Total Checked: ${totalCount}`;
+
+        if (checked) {
+          checkedSet.add(index);
+        } else {
+          checkedSet.delete(index);
+        }
+      });
+
+    </script>
+  </body>
+</html>
