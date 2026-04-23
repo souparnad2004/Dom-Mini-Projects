@@ -15,7 +15,6 @@ const server = createServer(app);
 const port = process.env.PORT || 4000;
 const io = new Server(server);
 
-await connectDB();
 
 async function getState() {
     const checkedItems = await Check.find({
@@ -33,7 +32,7 @@ async function getState() {
 app.use(express.static("public"))
 
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname , "public"))
+    res.sendFile(path.join(__dirname , "public", "index.html"))
 })
 
 let globalCount = 0;
@@ -42,8 +41,6 @@ async function updateGlobalCount() {
     const state = await getState();
     globalCount = state.totalCount;
 }
-
-await updateGlobalCount();
 
 
 io.on('connection', async (socket) => {
@@ -71,6 +68,18 @@ io.on('connection', async (socket) => {
     })
 })
 
-server.listen(port, () => {
-    console.log(`server running at http://localhost:${port}`)
-})
+const startServer = async () => {
+  try {
+    await connectDB();
+    await updateGlobalCount();
+
+    server.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  } catch (err) {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  }
+};
+
+startServer();
