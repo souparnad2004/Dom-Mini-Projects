@@ -1,93 +1,403 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Live Checkbox Grid</title>
     <style>
-      *,
-      *::before,
-      *::after {
-        margin: 0;
-        padding: 0;
+      * {
         box-sizing: border-box;
       }
 
       body {
-        background-color: aliceblue;
-        text-align: center;
-        font-size: 24px;
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, system-ui, sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
       }
-      .container {
-        padding: 20px;
+
+      header {
         display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 24px;
+        background: #ffffff;
+        border-bottom: 1px solid #e2e8f0;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 8px;
         flex-wrap: wrap;
       }
-      .container input {
-        margin: 3px;
-        accent-color: #615abd;
-        width: 25px;
-        height: 25px;
-        background-color: azure;
+
+      button {
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        cursor: pointer;
+        font-size: 14px;
+        background: #4338ca;
+        color: white;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .status {
+        padding: 16px 24px;
+        background: #ffffff;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .status p {
+        margin: 0;
+        line-height: 1.5;
+      }
+
+      .status .error {
+        color: #b91c1c;
+      }
+
+      .stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 8px;
+        color: #334155;
+      }
+
+      .grid-wrapper {
+        padding: 16px;
+      }
+
+      .container {
+        display: grid;
+        gap: 4px;
+        grid-template-columns: repeat(auto-fit, minmax(24px, 1fr));
+        justify-content: center;
+      }
+
+      .container input[type="checkbox"] {
+        width: 24px;
+        height: 24px;
+        accent-color: #4338ca;
+        cursor: pointer;
+      }
+
+      .container input[type="checkbox"]:disabled {
+        cursor: not-allowed;
+        opacity: 0.65;
       }
     </style>
   </head>
   <body>
-    <h1>Live Checkbox</h1>
+    <header>
+      <div>
+        <h1>Live Checkbox Grid</h1>
+        <div class="stats">
+          <span id="count">Loading...</span>
+          <span id="userInfo">Not logged in</span>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button id="loginBtn">Login</button>
+        <button id="logoutBtn" hidden>Logout</button>
+      </div>
+    </header>
 
-    <p id="count"></p>
-    <div class="container"></div>
+    <section class="status">
+      <p id="message">Real-time checkbox interaction with Redis and socket updates.</p>
+    </section>
+
+    <main class="grid-wrapper">
+      <div class="container"></div>
+    </main>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
-      const socket = io("https://live-checkbox.onrender.com");
       const container = document.querySelector(".container");
+      const countNode = document.getElementById("count");
+      const messageNode = document.getElementById("message");
+      const userInfoNode = document.getElementById("userInfo");
+      const loginBtn = document.getElementById("loginBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
 
-      const checkedSet = new Set();
-      const count = document.querySelector("#count");
+      let currentUser = null;
+      let socket = null;
+      let config = {
+        oidcIssuer: "",
+        oidcClientId: "",
+        redirectUri: window.location.origin + window.location.pathname,
+        gridSize: 10000,
+      };
+      let BOX_COUNT = 10000;
 
-      for (let i = 0; i < 5000; i++) {
-        const checkBox = document.createElement("input");
-        checkBox.type = "checkbox";
-
-        checkBox.dataset.id = i;
-        checkBox.addEventListener("change", () => {
-          socket.emit("checkbox-change", {
-            id: i,
-            checked: checkBox.checked,
-          });
-        });
-        console.log(checkBox.checked);
-        container.appendChild(checkBox);
+      function showMessage(text, isError = false) {
+        messageNode.textContent = text;
+        messageNode.className = isError ? "error" : "";
       }
 
-      socket.on("init-state", ({ checkedList, totalCount }) => {
-        checkedList.forEach((index) => {
-          const checkBox = document.querySelector(`input[data-id="${index}"]`);
+      function parseQueryParams() {
+        return new URLSearchParams(window.location.search);
+      }
 
-          if (checkBox) checkBox.checked = true;
+      function clearUrlParams() {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
 
-          checkedSet.add(index);
+      function createCheckbox(index) {
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.dataset.index = index;
+        checkbox.disabled = true;
+        checkbox.title = "Login to interact";
+
+        checkbox.addEventListener("change", () => {
+          if (!currentUser) {
+            checkbox.checked = !checkbox.checked;
+            showMessage("Login required to change boxes.", true);
+            return;
+          }
+
+          const ownerId = checkbox.dataset.ownerId;
+          if (ownerId && ownerId !== currentUser.userId) {
+            checkbox.checked = !checkbox.checked;
+            showMessage("You can only uncheck your own boxes.", true);
+            return;
+          }
+
+          socket.emit("checkbox-change", {
+            id: Number(index),
+            checked: checkbox.checked,
+          });
         });
 
-        count.textContent = `Total Checked: ${totalCount}`;
-      });
+        container.appendChild(checkbox);
+      }
 
-      socket.on("checkbox-change", ({ index, checked, totalCount }) => {
-        const checkBox = document.querySelector(`input[data-id="${index}"]`);
+      async function fetchConfig() {
+        const res = await fetch("/api/config");
+        if (!res.ok) throw new Error("Failed to load config");
+        const data = await res.json();
+        config = data;
+        BOX_COUNT = data.gridSize || BOX_COUNT;
+        return data;
+      }
 
-        if (checkBox) {
-          checkBox.checked = checked;
-        }
+      function setCheckboxState(index, { checked, owner, currentUserId }) {
+        const checkbox = document.querySelector(`input[data-index="${index}"]`);
+        if (!checkbox) return;
 
-        count.textContent = `Total Checked: ${totalCount}`;
-
-        if (checked) {
-          checkedSet.add(index);
+        checkbox.checked = checked;
+        if (checked && owner) {
+          checkbox.dataset.ownerId = owner.userId;
+          checkbox.dataset.ownerName = owner.name;
+          checkbox.dataset.ownerEmail = owner.email;
+          const ownerLabel = owner.userId === currentUserId ? "you" : owner.name || owner.email || "another user";
+          checkbox.title = owner.userId === currentUserId ? "Checked by you" : `Checked by ${ownerLabel}`;
+          checkbox.disabled = owner.userId !== currentUser?.userId;
         } else {
-          checkedSet.delete(index);
+          delete checkbox.dataset.ownerId;
+          delete checkbox.dataset.ownerName;
+          delete checkbox.dataset.ownerEmail;
+          checkbox.title = currentUser ? "Click to check" : "Login to interact";
+          checkbox.disabled = !currentUser;
+        }
+      }
+
+      function setGlobalState(checkedBoxes, totalCount, currentUserId) {
+        document.querySelectorAll(".container input").forEach((checkbox) => {
+          checkbox.checked = false;
+          delete checkbox.dataset.ownerId;
+          delete checkbox.dataset.ownerName;
+          delete checkbox.dataset.ownerEmail;
+          checkbox.title = currentUser ? "Click to check" : "Login to interact";
+          checkbox.disabled = !currentUser;
+        });
+
+        checkedBoxes.forEach((item) => {
+          setCheckboxState(item.index, {
+            checked: true,
+            owner: item.owner,
+            currentUserId,
+          });
+        });
+
+        countNode.textContent = `Total checked: ${totalCount}`;
+      }
+
+      async function loadSession() {
+        try {
+          const res = await fetch("/api/session", { credentials: "same-origin" });
+          if (!res.ok) throw new Error("Not authenticated");
+          const data = await res.json();
+
+          currentUser = data.user;
+          userInfoNode.textContent = `Logged in as ${currentUser.name}`;
+          loginBtn.hidden = true;
+          logoutBtn.hidden = false;
+          showMessage("Connected. Hover on checked boxes to see who owns them.");
+        } catch {
+          currentUser = null;
+          userInfoNode.textContent = "Not logged in";
+          loginBtn.hidden = false;
+          logoutBtn.hidden = true;
+          showMessage("Login first to interact with checkboxes.");
+        }
+      }
+
+      async function onOidcCallback() {
+        const params = parseQueryParams();
+        const code = params.get("code");
+        const state = params.get("state");
+        const storedState = localStorage.getItem("oidc_state");
+        const codeVerifier = localStorage.getItem("oidc_code_verifier");
+
+        if (!code) return false;
+        if (!state || !storedState || storedState !== state || !codeVerifier) {
+          showMessage("OIDC authorization failed. Please retry.", true);
+          clearUrlParams();
+          return true;
+        }
+
+        showMessage("Completing login...", false);
+
+        const res = await fetch("/api/auth/callback", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code,
+            code_verifier: codeVerifier,
+            redirect_uri: config.redirectUri,
+          }),
+        });
+
+        localStorage.removeItem("oidc_state");
+        localStorage.removeItem("oidc_code_verifier");
+        clearUrlParams();
+
+        if (!res.ok) {
+          const errorBody = await res.json().catch(() => ({}));
+          showMessage(`Login failed: ${errorBody.error || res.statusText}`, true);
+          return true;
+        }
+
+        const data = await res.json();
+        currentUser = data.user;
+        userInfoNode.textContent = `Logged in as ${currentUser.name}`;
+        loginBtn.hidden = true;
+        logoutBtn.hidden = false;
+        showMessage("Login complete. You can now edit checkboxes.");
+        return true;
+      }
+
+      async function login() {
+        const state = crypto.randomUUID();
+        const codeVerifier = Array.from({ length: 64 }, () => Math.random().toString(36).slice(2)).join("");
+        const encoder = new TextEncoder();
+        const digest = await crypto.subtle.digest("SHA-256", encoder.encode(codeVerifier));
+        const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=+$/, "");
+
+        localStorage.setItem("oidc_state", state);
+        localStorage.setItem("oidc_code_verifier", codeVerifier);
+
+        const authorizeUrl = new URL(`${config.oidcIssuer}/api/oauth/authorize`);
+        authorizeUrl.searchParams.set("client_id", config.oidcClientId);
+        authorizeUrl.searchParams.set("redirect_uri", config.redirectUri);
+        authorizeUrl.searchParams.set("response_type", "code");
+        authorizeUrl.searchParams.set("scope", "openid email profile");
+        authorizeUrl.searchParams.set("code_challenge", codeChallenge);
+        authorizeUrl.searchParams.set("code_challenge_method", "S256");
+        authorizeUrl.searchParams.set("state", state);
+
+        window.location.href = authorizeUrl.toString();
+      }
+
+      function logout() {
+        fetch("/api/logout", { method: "POST", credentials: "same-origin" }).finally(() => {
+          window.location.reload();
+        });
+      }
+
+      function connectSocket() {
+        if (socket) return;
+        socket = io({ withCredentials: true });
+
+        socket.on("connect", () => {
+          showMessage("Connected to live checkbox server.");
+        });
+
+        socket.on("init-state", (payload) => {
+          setGlobalState(payload.checkedBoxes, payload.totalCount, payload.currentUserId);
+        });
+
+        socket.on("checkbox-change", (payload) => {
+          setCheckboxState(payload.index, {
+            checked: payload.checked,
+            owner: payload.owner,
+            currentUserId: currentUser?.userId,
+          });
+          countNode.textContent = `Total checked: ${payload.totalCount}`;
+        });
+
+        socket.on("action-error", (payload) => {
+          showMessage(payload.message, true);
+        });
+
+        socket.on("connect_error", (err) => {
+          showMessage(err.message || "Socket connection failed", true);
+        });
+      }
+
+      loginBtn.addEventListener("click", login);
+      logoutBtn.addEventListener("click", logout);
+
+      function renderGrid() {
+        let index = 0;
+        const batchSize = 250;
+
+        function renderBatch() {
+          const end = Math.min(index + batchSize, BOX_COUNT);
+          for (; index < end; index += 1) {
+            createCheckbox(index);
+          }
+          if (index < BOX_COUNT) {
+            requestAnimationFrame(renderBatch);
+          }
+        }
+
+        renderBatch();
+      }
+
+      window.addEventListener("DOMContentLoaded", async () => {
+        try {
+          await fetchConfig();
+          renderGrid();
+          await onOidcCallback();
+          await loadSession();
+          connectSocket();
+        } catch (err) {
+          console.error(err);
+          showMessage("Startup failed. Check the backend log.", true);
         }
       });
-
     </script>
   </body>
 </html>

@@ -7,9 +7,21 @@ const checkSchema = new mongoose.Schema(
         unique: true
     },
     checked: {
-      type: Number,
-      default: 0,
+      type: Boolean,
+      default: false,
       required: true,
+    },
+    userId: {
+      type: String,
+      default: null,
+    },
+    userName: {
+      type: String,
+      default: null,
+    },
+    userEmail: {
+      type: String,
+      default: null,
     },
   },
   { timestamps: true }
